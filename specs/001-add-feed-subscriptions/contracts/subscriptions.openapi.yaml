@@ -1,0 +1,58 @@
+openapi: 3.1.0
+info:
+  title: RSS Feed Reader Subscriptions API
+  version: 1.0.0
+  description: Add and list in-memory feed URL subscriptions for the current API process.
+servers:
+  - url: http://localhost:5151
+paths:
+  /api/subscriptions:
+    get:
+      operationId: listSubscriptions
+      summary: List subscriptions
+      responses:
+        "200":
+          description: Subscriptions in insertion order, including duplicates.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+    post:
+      operationId: addSubscription
+      summary: Add a subscription
+      description: Appends the submitted URL as a separate entry without checking feed validity.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriptionRequest"
+      responses:
+        "200":
+          description: The newly appended subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          description: The request body is missing or does not contain a string URL.
+components:
+  schemas:
+    CreateSubscriptionRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          description: Submitted URL text; no URL syntax or feed validation is performed.
+    Subscription:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          description: Submitted URL text.
