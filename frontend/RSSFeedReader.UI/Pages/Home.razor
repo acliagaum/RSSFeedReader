@@ -1,0 +1,116 @@
+﻿@page "/"
+@inject HttpClient Http
+
+<PageTitle>Feed subscriptions</PageTitle>
+
+<h1>Feed subscriptions</h1>
+
+<form @onsubmit="AddSubscriptionAsync" @onsubmit:preventDefault>
+    <label for="feed-url">Feed URL</label>
+    <div class="input-group mb-3">
+        <input id="feed-url" class="form-control" @bind="_urlText" />
+        <button class="btn btn-primary" type="submit" disabled="@(_isLoading || _isSubmitting)">
+            @(_isSubmitting ? "Adding..." : "Add subscription")
+        </button>
+    </div>
+</form>
+
+@if (_isLoading)
+{
+    <p role="status">Loading subscriptions...</p>
+}
+
+@if (_errorMessage is not null)
+{
+    <p class="text-danger" role="alert">@_errorMessage</p>
+}
+
+<h2>Subscriptions</h2>
+@if (_subscriptions.Count == 0 && !_isLoading)
+{
+    <p>No subscriptions yet.</p>
+}
+else
+{
+    <ol>
+        @for (var index = 0; index < _subscriptions.Count; index++)
+        {
+            <li @key="index">@_subscriptions[index].Url</li>
+        }
+    </ol>
+}
+
+@code {
+    private readonly List<SubscriptionResponse> _subscriptions = [];
+    private string _urlText = string.Empty;
+    private string? _errorMessage;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var subscriptions = await Http.GetFromJsonAsync<SubscriptionResponse[]>("api/subscriptions");
+            if (subscriptions is null)
+            {
+                _errorMessage = "The API returned an invalid subscription list.";
+                return;
+            }
+
+            _subscriptions.AddRange(subscriptions);
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Could not load subscriptions: {exception.Message}";
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            _errorMessage = $"Could not read subscriptions: {exception.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task AddSubscriptionAsync()
+    {
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            using var response = await Http.PostAsJsonAsync(
+                "api/subscriptions",
+                new CreateSubscriptionRequest(_urlText));
+            response.EnsureSuccessStatusCode();
+
+            var subscription = await response.Content.ReadFromJsonAsync<SubscriptionResponse>();
+            if (subscription is null)
+            {
+                _errorMessage = "The API returned an invalid subscription.";
+                return;
+            }
+
+            _subscriptions.Add(subscription);
+            _urlText = string.Empty;
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = $"Could not add subscription: {exception.Message}";
+        }
+        catch (System.Text.Json.JsonException exception)
+        {
+            _errorMessage = $"Could not read the added subscription: {exception.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private sealed record CreateSubscriptionRequest(string Url);
+
+    private sealed record SubscriptionResponse(string Url);
+}

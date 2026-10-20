@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+*.user
+*.suo
+*.log
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
